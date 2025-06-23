@@ -11,4 +11,10 @@ export default defineNuxtConfig({
     colorMode: true
   },
   modules: ["@nuxt/ui", "@pinia/nuxt"],
+  runtimeConfig: {
+    public: {
+      supabaseUrl: process.env.NUXT_PUBLIC_SUPABASE_URL,
+      supabaseKey: process.env.NUXT_PUBLIC_SUPABASE_KEY
+    }
+  },
 });
