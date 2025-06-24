@@ -1,150 +1,7 @@
-<script setup lang="ts">
-import { ref, computed, watch } from 'vue'
-import ExcelJS from 'exceljs'
-import { saveAs } from 'file-saver'
-
-import jsPDF from 'jspdf'
-import 'jspdf-autotable'
-
-// --- Inputs ---
-const loanAmount = ref(100000)       // 100,000 - 10,000,000
-const interestRate = ref(5)          // 1 - 20 %
-const loanTermYears = ref(1)         // ปี
-const loanTermMonths = ref(0)        // เดือน
-const startDate = ref(new Date().toISOString().substring(0, 10)) 
-
-// --- Validations & Limits ---
-const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max)
-
-// --- Computed values ---
-const totalMonths = computed(() => clamp(loanTermYears.value * 12 + loanTermMonths.value, 1, 600))
-
-const monthlyInterestRate = computed(() => interestRate.value / 100 / 12)
-
-const monthlyPayment = computed(() => {
-  const P = clamp(loanAmount.value, 100000, 10000000)
-  const r = monthlyInterestRate.value
-  const n = totalMonths.value
-
-  if (r === 0) return P / n
-
-  return (P * r) / (1 - Math.pow(1 + r, -n))
-})
-
-const totalPayment = computed(() => monthlyPayment.value * totalMonths.value)
-const totalInterest = computed(() => totalPayment.value - loanAmount.value)
-
-// --- Amortization Schedule ---
-interface ScheduleItem {
-  month: number
-  date: string
-  payment: number
-  principal: number
-  interest: number
-  balance: number
-}
-
-const schedule = computed<ScheduleItem[]>(() => {
-  const P = clamp(loanAmount.value, 100000, 10000000)
-  const r = monthlyInterestRate.value
-  const n = totalMonths.value
-  let balance = P
-
-  // แปลง string -> Date แบบปลอดภัย
-  const [year, month, day] = startDate.value.split('-').map(Number)
-  const start = new Date(year, month - 1, day)
-
-  const result: ScheduleItem[] = []
-
-  for (let i = 1; i <= n; i++) {
-    let interestPayment = r * balance
-    let principalPayment = monthlyPayment.value - interestPayment
-    if (balance - principalPayment < 0) principalPayment = balance
-    balance -= principalPayment
-
-    const paymentDate = new Date(start)
-    paymentDate.setMonth(paymentDate.getMonth() + i - 1)
-    const dateStr = paymentDate.toISOString().substring(0, 10)
-
-    result.push({
-      month: i,
-      date: dateStr, // ✅ เก็บเป็น string เท่านั้น
-      payment: monthlyPayment.value,
-      principal: principalPayment,
-      interest: interestPayment,
-      balance: Math.max(balance, 0),
-    })
-  }
-
-  return result
-})
-
-
-// --- Export Functions ---
-
-async function exportToExcel() {
-  const workbook = new ExcelJS.Workbook()
-  const worksheet = workbook.addWorksheet('Amortization')
-
-  // Header row
-  worksheet.addRow(['เดือน', 'วันที่', 'ยอดผ่อนชำระ', 'ตัดต้น', 'ดอกเบี้ย', 'ยอดคงเหลือ'])
-
-  // Data rows
-  schedule.value.forEach(item => {
-    worksheet.addRow([
-      item.month,
-      item.date,
-      item.payment.toFixed(2),
-      item.principal.toFixed(2),
-      item.interest.toFixed(2),
-      item.balance.toFixed(2),
-    ])
-  })
-
-  // Save file
-  const buffer = await workbook.xlsx.writeBuffer()
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
-  saveAs(blob, 'loan_schedule.xlsx')
-}
-
-function exportToPDF() {
-  // const doc = new jsPDF()
-  // doc.text('ตารางการผ่อนชำระ (Amortization Schedule)', 14, 15)
-  // doc.addFileToVFS('THSarabun.ttf', base64FontData)
-  // doc.addFont('THSarabun.ttf', 'THSarabun', 'normal')
-  // doc.setFont('THSarabun')
-  // const rows = schedule.value.map(item => [
-  //   item.month,
-  //   item.date,
-  //   item.payment.toFixed(2),
-  //   item.principal.toFixed(2),
-  //   item.interest.toFixed(2),
-  //   item.balance.toFixed(2),
-  // ])
-  
-  // doc.autoTable({
-  //   head: [['เดือน', 'วันที่', 'ยอดผ่อนชำระ', 'ตัดต้น', 'ดอกเบี้ย', 'ยอดคงเหลือ']],
-  //   body: rows,
-  //   startY: 20,
-  //   styles: { fontSize: 8 },
-  //   headStyles: { fillColor: [22, 160, 133] },
-  // })
-
- const doc = new jsPDF()
-  doc.addFileToVFS('THSarabun.ttf', base64FontData)
-  doc.addFont('THSarabun.ttf', 'THSarabun', 'normal')
-  doc.setFont('THSarabun')
-  doc.text('ตารางการผ่อนชำระ (Amortization Schedule)', 14, 15)
-  doc.save('test.pdf')
-  // doc.save('loan_schedule.pdf')
-}
-</script>
-
 <template>
   <div class="max-w-5xl mx-auto p-6 bg-white dark:bg-gray-800 rounded-md shadow-md mt-10 text-gray-900 dark:text-gray-100">
     <h1 class="text-3xl font-bold mb-6 text-center">เครื่องคำนวณสินเชื่อ</h1>
 
-    <!-- Inputs -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
       <div>
         <label class="block mb-1 font-semibold">ยอดเงินกู้ (100,000 - 10,000,000 บาท)</label>
@@ -204,7 +61,6 @@ function exportToPDF() {
       </div>
     </div>
 
-    <!-- Results -->
     <div class="mb-6 p-4 bg-gray-100 dark:bg-gray-700 rounded space-y-3">
       <p>
         <strong>ยอดผ่อนชำระต่อเดือน:</strong>
@@ -220,7 +76,6 @@ function exportToPDF() {
       </p>
     </div>
 
-    <!-- Amortization Schedule Table -->
     <div class="overflow-auto max-h-96 mb-6">
       <table class="min-w-full table-auto border-collapse border border-gray-300 dark:border-gray-600">
         <thead class="bg-gray-200 dark:bg-gray-700 sticky top-0">
@@ -250,14 +105,7 @@ function exportToPDF() {
       </table>
     </div>
 
-    <!-- Export Buttons -->
     <div class="flex space-x-4 justify-center">
-      <button
-        @click="exportToPDF"
-        class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-      >
-        Export PDF
-      </button>
       <button
         @click="exportToExcel"
         class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition"
@@ -268,3 +116,102 @@ function exportToPDF() {
     </div>
   </div>
 </template>
+<script setup lang="ts">
+import { ref, computed, watch } from 'vue'
+import ExcelJS from 'exceljs'
+import { saveAs } from 'file-saver'
+
+
+// --- Inputs ---
+const loanAmount = ref(100000)       
+const interestRate = ref(5)          
+const loanTermYears = ref(1)         
+const loanTermMonths = ref(0)      
+const startDate = ref(new Date().toISOString().substring(0, 10)) 
+
+const clamp = (val: number, min: number, max: number) => Math.min(Math.max(val, min), max)
+
+const totalMonths = computed(() => clamp(loanTermYears.value * 12 + loanTermMonths.value, 1, 600))
+
+const monthlyInterestRate = computed(() => interestRate.value / 100 / 12)
+
+const monthlyPayment = computed(() => {
+  const P = clamp(loanAmount.value, 100000, 10000000)
+  const r = monthlyInterestRate.value
+  const n = totalMonths.value
+
+  if (r === 0) return P / n
+
+  return (P * r) / (1 - Math.pow(1 + r, -n))
+})
+
+const totalPayment = computed(() => monthlyPayment.value * totalMonths.value)
+const totalInterest = computed(() => totalPayment.value - loanAmount.value)
+
+interface ScheduleItem {
+  month: number
+  date: string
+  payment: number
+  principal: number
+  interest: number
+  balance: number
+}
+
+const schedule = computed<ScheduleItem[]>(() => {
+  const P = clamp(loanAmount.value, 100000, 10000000)
+  const r = monthlyInterestRate.value
+  const n = totalMonths.value
+  let balance = P
+
+  const [year, month, day] = startDate.value.split('-').map(Number)
+  const start = new Date(year, month - 1, day)
+
+  const result: ScheduleItem[] = []
+
+  for (let i = 1; i <= n; i++) {
+    let interestPayment = r * balance
+    let principalPayment = monthlyPayment.value - interestPayment
+    if (balance - principalPayment < 0) principalPayment = balance
+    balance -= principalPayment
+
+    const paymentDate = new Date(start)
+    paymentDate.setMonth(paymentDate.getMonth() + i - 1)
+    const dateStr = paymentDate.toISOString().substring(0, 10)
+
+    result.push({
+      month: i,
+      date: dateStr,
+      payment: monthlyPayment.value,
+      principal: principalPayment,
+      interest: interestPayment,
+      balance: Math.max(balance, 0),
+    })
+  }
+
+  return result
+})
+
+
+async function exportToExcel() {
+  const workbook = new ExcelJS.Workbook()
+  const worksheet = workbook.addWorksheet('Amortization')
+
+  worksheet.addRow(['เดือน', 'วันที่', 'ยอดผ่อนชำระ', 'ตัดต้น', 'ดอกเบี้ย', 'ยอดคงเหลือ'])
+
+  schedule.value.forEach(item => {
+    worksheet.addRow([
+      item.month,
+      item.date,
+      item.payment.toFixed(2),
+      item.principal.toFixed(2),
+      item.interest.toFixed(2),
+      item.balance.toFixed(2),
+    ])
+  })
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  saveAs(blob, 'loan_schedule.xlsx')
+}
+
+</script>

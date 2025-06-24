@@ -88,8 +88,9 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from "vue";
 import type { Category } from "~/types/category";
-import type { Tags } from "~/types/category";
+import type { Tags } from "~/types/tags";
 import { createSlug } from "~/utils/createSlug";
+const toast = useToast();
 
 const supabase = useNuxtApp().$supabase;
 
@@ -97,10 +98,10 @@ const form = reactive({
   title: "",
   content: "",
   category: "",
-  tags: [] as string[],
+  tags: [] as { label: string; value: string }[],
   seoTitle: "",
   seoDescription: "",
-  imageFile: null,
+  imageFile: null as File | null,
 });
 
 const category = ref<{ label: string; value: string }[]>([]);
@@ -117,9 +118,9 @@ async function fetchCategories() {
   category.value = (data as Category[])
     .filter((item): item is Category => Boolean(item.name))
     .map((item) => ({
-      label: item.name,
+      label: item.name ?? '',
       value: item.id,
-    }));
+    })).filter(item => item.label !== '');;
 }
 
 async function fetchTags() {
@@ -133,9 +134,9 @@ async function fetchTags() {
   tags.value = (data as Tags[])
     .filter((item): item is Tags => Boolean(item.name))
     .map((item) => ({
-      label: item.name,
+      label: item.name ?? '',
       value: item.id,
-    }));
+    })).filter(item => item.label !== '');;
 }
 
 //const tags = ["Vue", "Nuxt", "SEO", "JavaScript", "CSS"];
@@ -242,6 +243,10 @@ async function submitForm() {
     console.error("❌ Insert error:", insertError);
   } else {
     console.log("✅ บันทึกบทความสำเร็จ", article);
+    toast.add({
+      title: "บันทึกบทความสำเร็จ",
+    });
+    navigateTo('/articles');
   }
 }
 </script>

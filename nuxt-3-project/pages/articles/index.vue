@@ -4,6 +4,11 @@
       <h1 class="text-2xl font-semibold text-center">บทความ</h1>
     </div>
 
+    <div class="my-3 flex justify-end gap-2">
+      <UButton color="success" to="/articles/create">เพิ่มบทความ</UButton>
+      <UButton color="warning" to="/articles/edit">แก้ไขบทความ</UButton>
+    </div>
+
     <div v-if="loading" class="text-center">กำลังโหลดข้อมูล...</div>
     <div v-else-if="articles.length === 0" class="text-center">ไม่พบบทความ</div>
 
@@ -13,7 +18,10 @@
         :key="article.id"
         class="p-4 border rounded-xl shadow hover:shadow-md bg-white dark:bg-gray-800 transition"
       >
-        <NuxtLink :to="`/articles/${encodeURIComponent(article.slug)}`" class="block space-y-2">
+        <NuxtLink
+          :to="`/articles/${encodeURIComponent(article.slug)}`"
+          class="block space-y-2"
+        >
           <img
             :src="article.cover_image_url || '/placeholder.jpg'"
             alt="article image"
@@ -42,7 +50,10 @@ const loading = ref(true);
 
 onMounted(async () => {
   try {
-    const { data, error } = await supabase.from("articles").select("*");
+    const { data, error } = await supabase
+      .from("articles")
+      .select("*")
+      .order("created_at", { ascending: false });
 
     if (error) throw error;
 

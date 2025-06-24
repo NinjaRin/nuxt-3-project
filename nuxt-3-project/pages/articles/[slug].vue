@@ -9,20 +9,20 @@
 
     <div v-if="loading" class="text-center text-lg">กำลังโหลดบทความ...</div>
 
-    <div v-else-if="error" class="text-center text-red-500">{{ error }}</div>
+    <div v-else-if="err" class="text-center text-red-500">{{ err }}</div>
 
     <article v-else>
-      <h1 class="text-3xl font-bold mb-4">{{ article.title }}</h1>
+      <h1 class="text-3xl font-bold mb-4">{{ article?.title }}</h1>
 
       <img
-        v-if="article.cover_image_url"
+        v-if="article?.cover_image_url"
         :src="article.cover_image_url"
         alt="ภาพประกอบบทความ"
         class="mb-6 w-full max-h-96 object-cover rounded-lg"
       />
       <div
         class="prose dark:prose-invert max-w-none"
-        v-html="article.content"
+        v-html="article?.content"
       ></div>
 
       <div class="mt-12">
@@ -51,16 +51,34 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { useHead } from '#imports'
+import { useHead } from "#imports";
 
 const supabase = useNuxtApp().$supabase;
 
 const route = useRoute();
 const router = useRouter();
-const relatedArticles = ref([]);
-const article = ref(null);
+
+interface Article {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  cover_image_url?: string | null;
+  category_id: number;
+  summary?: string | null;
+}
+
+interface RelatedArticle {
+  id: string;
+  title: string;
+  slug: string;
+  cover_image_url?: string | null;
+}
+
+const article = ref<Article | null>(null);
+const relatedArticles = ref<RelatedArticle[]>([]);
 const loading = ref(true);
-const error = ref("");
+const err = ref("");
 
 const slug = route.params.slug as string;
 
@@ -74,7 +92,7 @@ onMounted(async () => {
 
     if (supabaseError) throw supabaseError;
     if (!data) {
-      error.value = "ไม่พบบทความนี้";
+      err.value = "ไม่พบบทความนี้";
       return;
     }
 
@@ -88,12 +106,13 @@ onMounted(async () => {
       .limit(3);
 
     if (relatedError) throw relatedError;
-    relatedArticles.value = related;
 
+    relatedArticles.value = related || [];
 
-const { data: category, error } = await supabase
-  .from('articles')
-  .select(`
+    const { data: category, error } = await supabase
+      .from("articles")
+      .select(
+        `
     id,
     title,
     content,
@@ -104,53 +123,48 @@ const { data: category, error } = await supabase
       id,
       name
     )
-  `)
-  .eq('slug', route.params.slug)
-  .single();
-
-
-
-
-
+  `
+      )
+      .eq("slug", route.params.slug)
+      .single();
   } catch (err: any) {
-    error.value = "เกิดข้อผิดพลาดในการโหลดบทความ";
+    err.value = "เกิดข้อผิดพลาดในการโหลดบทความ";
     console.error(err);
   } finally {
     loading.value = false;
   }
 });
 
-
-
 useHead(() => ({
-  title: article.value?.title || 'กำลังโหลด...',
+  title: article.value?.title || "กำลังโหลด...",
   meta: [
     {
-      name: 'description',
-      content: article.value?.summary || article.value?.title || '',
+      name: "description",
+      content: article.value?.summary || article.value?.title || "",
     },
     {
-      property: 'og:title',
-      content: article.value?.title || '',
+      property: "og:title",
+      content: article.value?.title || "",
     },
     {
-      property: 'og:description',
-      content: article.value?.summary || article.value?.title || '',
+      property: "og:description",
+      content: article.value?.summary || article.value?.title || "",
     },
     {
-      property: 'og:image',
-      content: article.value?.cover_image_url || 'https://example.com/default-og.jpg',
+      property: "og:image",
+      content:
+        article.value?.cover_image_url || "images/default-og.webp",
     },
     {
-      property: 'og:type',
-      content: 'article',
+      property: "og:type",
+      content: "article",
     },
     {
-      name: 'twitter:card',
-      content: 'summary_large_image',
+      name: "twitter:card",
+      content: "summary_large_image",
     },
   ],
-}))
+}));
 </script>
 
 <style scoped></style>
