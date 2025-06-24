@@ -25,6 +25,11 @@
             class="hover:text-blue-600 dark:hover:text-blue-400"
             >Comparison</NuxtLink
           >
+          <NuxtLink
+            to="/articles"
+            class="hover:text-blue-600 dark:hover:text-blue-400"
+            >Articles</NuxtLink
+          >
         </nav>
 
         <ColorModeButton class="mx-2 cursor-pointer" />
@@ -56,6 +61,11 @@
           to="/comparison"
           class="block hover:text-blue-600 dark:hover:text-blue-400"
           >Comparison</NuxtLink
+        >
+        <NuxtLink
+          to="/articles"
+          class="hover:text-blue-600 dark:hover:text-blue-400"
+          >Articles</NuxtLink
         >
       </div>
     </div>
