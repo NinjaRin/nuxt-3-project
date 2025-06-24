@@ -179,7 +179,6 @@ async function submitArticle() {
   await submitForm();
 }
 
-
 async function submitForm() {
   uploading.value = true;
 
@@ -223,14 +222,18 @@ async function submitForm() {
     .single();
 
   if (article && form.tags.length) {
-    const articleTags = form.tags.map((tagId) => ({
+    const articleTags = form.tags.map((tag) => ({
       article_id: article.id,
-      tag_id: tagId,
+      tag_id: tag.value,
     }));
 
     const { error: tagError } = await supabase
       .from("article_tags")
       .insert(articleTags);
+
+    if (tagError) {
+      console.error("Error inserting article_tags:", tagError);
+    }
   }
 
   uploading.value = false;

@@ -14,19 +14,15 @@
         class="p-4 border rounded-xl shadow hover:shadow-md bg-white dark:bg-gray-800 transition"
       >
         <NuxtLink :to="`/articles/${encodeURIComponent(article.slug)}`" class="block space-y-2">
-          <!-- ✅ รูปบทความ -->
           <img
             :src="article.cover_image_url || '/placeholder.jpg'"
             alt="article image"
             class="w-full h-48 object-cover rounded-lg"
           />
 
-          <!-- ✅ หัวข้อ -->
           <h2 class="text-xl font-semibold text-primary">
             {{ article.title }}
           </h2>
-
-          <!-- ✅ คำอธิบาย -->
           <p class="text-gray-600 dark:text-gray-300 text-sm line-clamp-3">
             {{ stripHtml(article.content) }}
           </p>
@@ -47,7 +43,6 @@ const loading = ref(true);
 onMounted(async () => {
   try {
     const { data, error } = await supabase.from("articles").select("*");
-    console.log(data);
 
     if (error) throw error;
 

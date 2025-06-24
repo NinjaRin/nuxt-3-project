@@ -25,8 +25,7 @@
         v-html="article.content"
       ></div>
 
-
-       <div class="mt-12">
+      <div class="mt-12">
         <h2 class="text-2xl font-semibold mb-4">บทความที่เกี่ยวข้อง</h2>
         <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <NuxtLink
@@ -52,12 +51,13 @@
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
+import { useHead } from '#imports'
 
 const supabase = useNuxtApp().$supabase;
 
 const route = useRoute();
 const router = useRouter();
-const relatedArticles = ref([])
+const relatedArticles = ref([]);
 const article = ref(null);
 const loading = ref(true);
 const error = ref("");
@@ -70,7 +70,7 @@ onMounted(async () => {
       .from("articles")
       .select("*")
       .eq("slug", slug)
-      .single(); 
+      .single();
 
     if (supabaseError) throw supabaseError;
     if (!data) {
@@ -80,19 +80,38 @@ onMounted(async () => {
 
     article.value = data;
 
-    console.log(data)
+    const { data: related, error: relatedError } = await supabase
+      .from("articles")
+      .select("id, title, slug, cover_image_url")
+      .eq("category_id", data.category_id)
+      .neq("slug", slug)
+      .limit(3);
+
+    if (relatedError) throw relatedError;
+    relatedArticles.value = related;
 
 
-  const { data: related, error: relatedError } = await supabase
-      .from('articles')
-      .select('id, title, slug, cover_image_url')
-      .eq('category_id', data.category_id)
-      .neq('slug', slug)
-      .limit(3)
+const { data: category, error } = await supabase
+  .from('articles')
+  .select(`
+    id,
+    title,
+    content,
+    cover_image_url,
+    category_id,
+    tags,
+    categories (
+      id,
+      name
+    )
+  `)
+  .eq('slug', route.params.slug)
+  .single();
 
-    if (relatedError) throw relatedError
-        relatedArticles.value = related
- console.log(related)
+
+
+
+
   } catch (err: any) {
     error.value = "เกิดข้อผิดพลาดในการโหลดบทความ";
     console.error(err);
@@ -100,6 +119,38 @@ onMounted(async () => {
     loading.value = false;
   }
 });
+
+
+
+useHead(() => ({
+  title: article.value?.title || 'กำลังโหลด...',
+  meta: [
+    {
+      name: 'description',
+      content: article.value?.summary || article.value?.title || '',
+    },
+    {
+      property: 'og:title',
+      content: article.value?.title || '',
+    },
+    {
+      property: 'og:description',
+      content: article.value?.summary || article.value?.title || '',
+    },
+    {
+      property: 'og:image',
+      content: article.value?.cover_image_url || 'https://example.com/default-og.jpg',
+    },
+    {
+      property: 'og:type',
+      content: 'article',
+    },
+    {
+      name: 'twitter:card',
+      content: 'summary_large_image',
+    },
+  ],
+}))
 </script>
 
 <style scoped></style>
