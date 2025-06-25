@@ -88,145 +88,180 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, onMounted } from "vue";
+import { useRoute, useRouter } from "vue-router";
 
-const route = useRoute()
-const router = useRouter()
-const supabase = useNuxtApp().$supabase
+const route = useRoute();
+const router = useRouter();
+const supabase = useNuxtApp().$supabase;
 
-const id = route.query.id as string | undefined
+const id = route.query.id as string | undefined;
 
 interface ArticleForm {
-  title: string
-  content: string
-  category: string | null| undefined 
-  tags: { label: string; value: string }[]
-  seoTitle: string
-  seoDescription: string
-  image: File | null
-  cover_image_url: string
+  title: string;
+  content: string | undefined;
+  category: string | null | undefined;
+  tags: { label: string; value: string }[];
+  seoTitle: string;
+  seoDescription: string;
+  image: File | null;
+  cover_image_url: string;
 }
 const categoryValue = computed({
   get: () => form.value.category ?? undefined,
-  set: (val) => form.value.category = val,
-})
-const form = ref<ArticleForm>({
-  title: '',
-  content: '',
-  category: undefined,
-  tags: [],
-  seoTitle: '',
-  seoDescription: '',
-  image: null,
-  cover_image_url: '',
-})
+  set: (val) => (form.value.category = val),
+});
 
-const previewUrl = ref<string | null>(null)
-const category = ref<{ label: string; value: string }[]>([])
-const tags = ref<{ label: string; value: string }[]>([])
-const loading = ref(true)
-const error = ref('')
+const previewUrl = ref<string | null>(null);
+const category = ref<{ label: string; value: string }[]>([]);
+const tags = ref<{ label: string; value: string }[]>([]);
+const loading = ref(true);
+const error = ref("");
 
 const fetchData = async () => {
   if (!id) {
-    error.value = 'ไม่พบรหัสบทความ'
-    return
+    error.value = "ไม่พบรหัสบทความ";
+    return;
   }
 
   const { data, error: fetchError } = await supabase
-    .from('articles')
-    .select('*')
-    .eq('id', id)
-    .single()
+    .from("articles")
+    .select(
+      "id, title, content, category_id, seo_title, seo_description, cover_image_url"
+    )
+    .eq("id", id)
+    .single();
 
   if (fetchError || !data) {
-    error.value = 'ไม่สามารถโหลดบทความได้'
-    console.error(fetchError)
-    return
+    error.value = "ไม่สามารถโหลดบทความได้";
+    console.error(fetchError);
+    return;
   }
+
+  const { data: tagLinks, error: tagLinkError } = await supabase
+    .from("article_tags")
+    .select("tag_id")
+    .eq("article_id", id);
+
+  const tagIds = tagLinks?.map((link) => link.tag_id) ?? [];
+
+  const { data: tagItems, error: tagItemsError } = await supabase
+    .from("tags")
+    .select("id, name")
+    .in("id", tagIds);
+
+  const selectedTags =
+    tagItems?.map((t) => ({ label: t.name, value: t.id })) ?? [];
 
   form.value = {
     title: data.title,
     content: data.content,
     category: data.category_id,
-    tags: data.tags || [],
-    seoTitle: data.seo_title || '',
-    seoDescription: data.seo_description || '',
+    tags: selectedTags,
+    seoTitle: data.seo_title || "",
+    seoDescription: data.seo_description || "",
     image: null,
-    cover_image_url: data.cover_image_url || '',
-  }
+    cover_image_url: data.cover_image_url || "",
+  };
 
-  previewUrl.value = data.cover_image_url || ''
-}
+  previewUrl.value = data.cover_image_url || "";
+};
+
+const form = ref<ArticleForm>({
+  title: "",
+  content: "",
+  category: undefined,
+  tags: [],
+  seoTitle: "",
+  seoDescription: "",
+  image: null,
+  cover_image_url: "",
+});
+
+
+
+
+
+
 
 const fetchCategoriesAndTags = async () => {
   const { data: categoriesData } = await supabase
-    .from('categories')
-    .select('id, name')
+    .from("categories")
+    .select("id, name");
 
   category.value =
-    categoriesData?.map((c: any) => ({ label: c.name, value: c.id })) ?? []
+    categoriesData?.map((c: any) => ({ label: c.name, value: c.id })) ?? [];
 
-  const { data: tagsData } = await supabase.from('tags').select('id, name')
+  const { data: tagsData } = await supabase.from("tags").select("id, name");
   tags.value =
-    tagsData?.map((t: any) => ({ label: t.name, value: t.id })) ?? []
-}
+    tagsData?.map((t: any) => ({ label: t.name, value: t.id })) ?? [];
+};
 
 onMounted(async () => {
-  await Promise.all([fetchData(), fetchCategoriesAndTags()])
-  loading.value = false
-})
+  await Promise.all([fetchData(), fetchCategoriesAndTags()]);
+  loading.value = false;
+});
 
 const onFileChange = async (event: Event) => {
-  const file = (event.target as HTMLInputElement)?.files?.[0]
-  if (!file) return
+  const file = (event.target as HTMLInputElement)?.files?.[0];
+  if (!file) return;
 
-  form.value.image = file
-  previewUrl.value = URL.createObjectURL(file)
-}
+  form.value.image = file;
+  previewUrl.value = URL.createObjectURL(file);
+};
 
 const uploadImage = async (file: File) => {
-  const fileName = `${Date.now()}-${file.name}`
+  const fileName = `${Date.now()}-${file.name}`;
   const { data, error: uploadError } = await supabase.storage
-    .from('your-bucket')
-    .upload(`articles/${fileName}`, file)
+    .from("article-images")
+    .upload(`public/${fileName}`, file);
 
-  if (uploadError) throw uploadError
+  if (uploadError) throw uploadError;
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from('your-bucket').getPublicUrl(data.path)
-
-  return publicUrl
-}
+  } = supabase.storage.from("article-images").getPublicUrl(data.path);
+  return publicUrl;
+};
 
 const submitArticle = async () => {
-  let imageUrl = form.value.cover_image_url
+  let imageUrl = form.value.cover_image_url;
 
   if (form.value.image) {
-    imageUrl = await uploadImage(form.value.image)
+    imageUrl = await uploadImage(form.value.image);
   }
 
   const { error: updateError } = await supabase
-    .from('articles')
+    .from("articles")
     .update({
       title: form.value.title,
       content: form.value.content,
       cover_image_url: imageUrl,
       category_id: form.value.category ?? null,
-      tags: form.value.tags,
       seo_title: form.value.seoTitle,
       seo_description: form.value.seoDescription,
     })
-    .eq('id', id)
+    .eq("id", id);
 
-  if (updateError) {
-    alert('เกิดข้อผิดพลาดในการบันทึก')
-    console.error(updateError)
-    return
+  await supabase.from("article_tags").delete().eq("article_id", id);
+
+  const newTagLinks = form.value.tags.map((tag) => ({
+    article_id: id,
+    tag_id: tag.value,
+  }));
+
+  if (newTagLinks.length > 0) {
+    const { error: tagInsertError } = await supabase
+      .from("article_tags")
+      .insert(newTagLinks);
+
+    if (updateError || tagInsertError) {
+      alert("เกิดข้อผิดพลาดในการบันทึก");
+      console.error(updateError, tagInsertError);
+      return;
+    }
   }
 
-  router.push('/articles/manage')
-}
+  router.push("/articles/manage");
+};
 </script>

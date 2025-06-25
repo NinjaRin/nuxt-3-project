@@ -1,7 +1,7 @@
 <template>
   <ClientOnly>
     <div>
-      <textarea :id="editorId" />
+      <textarea :id="editorId"></textarea>
     </div>
   </ClientOnly>
 </template>

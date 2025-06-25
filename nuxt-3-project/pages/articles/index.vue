@@ -40,8 +40,8 @@
     <div class="flex justify-center relative p-4 z-[1]">
       <UPagination
         v-model:page="page"
-        :sibling-count="1"
-        :total="Math.ceil(total / pageSize.value)"
+        :total="Math.ceil(total / pageSize)"
+        :sibling-count="total <= pageSize ? 0 : 1"
       />
     </div>
   </div>
@@ -54,10 +54,10 @@ import { stripHtml } from "~/utils/stripHtml";
 const articles = ref([]);
 const total = ref(0);
 const page = ref(1);
-const pageSize = ref(6);
+const pageSize = ref(12);
 const loading = ref(true);
 const error = ref(null);
-console.log(Math.ceil(total / pageSize.value));
+
 watchEffect(async () => {
   loading.value = true;
   error.value = null;
