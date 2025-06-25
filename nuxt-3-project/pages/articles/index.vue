@@ -9,7 +9,7 @@
       <UButton color="warning" to="/articles/manage">จัดการบทความ</UButton>
     </div>
 
-    <div v-if="loading" class="text-center">กำลังโหลดข้อมูล...</div>
+    <div v-if="loading">กำลังโหลดข้อมูล...</div>
     <div v-else-if="articles.length === 0" class="text-center">ไม่พบบทความ</div>
 
     <div class="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -37,33 +37,50 @@
         </NuxtLink>
       </div>
     </div>
+    <div class="flex justify-center relative p-4 z-[1]">
+      <UPagination
+        v-model:page="page"
+        :sibling-count="1"
+        :total="Math.ceil(total / pageSize.value)"
+      />
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from "vue";
+import { ref, watchEffect } from "vue";
 import { stripHtml } from "~/utils/stripHtml";
-const supabase = useNuxtApp().$supabase;
 
 const articles = ref([]);
+const total = ref(0);
+const page = ref(1);
+const pageSize = ref(6);
 const loading = ref(true);
+const error = ref(null);
+console.log(Math.ceil(total / pageSize.value));
+watchEffect(async () => {
+  loading.value = true;
+  error.value = null;
 
-onMounted(async () => {
   try {
-    const { data, error } = await supabase
-      .from("articles")
-      .select("*")
-      .order("created_at", { ascending: false });
+    const { data, error: fetchError } = await useFetch("/api/articles", {
+      query: {
+        page: page.value,
+        pageSize: pageSize.value,
+      },
+    });
 
-    if (error) throw error;
-
-    articles.value = data;
+    if (fetchError.value) {
+      error.value = fetchError.value;
+    } else {
+      articles.value = data.value.articles;
+      total.value = data.value.total;
+    }
   } catch (err) {
-    console.error("Error loading articles:", err);
+    error.value = err;
   } finally {
     loading.value = false;
   }
 });
 </script>
-
 <style scoped></style>

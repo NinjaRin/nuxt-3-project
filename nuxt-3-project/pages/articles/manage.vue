@@ -1,94 +1,150 @@
 <template>
-  <div class="max-w-5xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-4">จัดการบทความ</h1>
+  <div>
+    <div class="my-5">
+      <h1 class="text-2xl font-semibold text-center">จัดการบทความ</h1>
+    </div>
+    <div v-if="loading">กำลังโหลดบทความ...</div>
+    <div v-else-if="error">{{ error }}</div>
 
-    <div v-if="loading" class="text-center">กำลังโหลดบทความ...</div>
-    <div v-else-if="error" class="text-red-500 text-center">{{ error }}</div>
+    <UTable
+      v-else
+      :columns="columns"
+      :data="articles"
+      :loading="loading"
+      class="flex-1"
+    >
+    </UTable>
+    <UModal
+      v-model:open="isDeleteModalOpen"
+      title="ยืนยันการลบ"
+      :ui="{ footer: 'flex justify-end gap-2' }"
+      prevent-close
+    >
+      <template #body>
+        <p class="mb-4">คุณแน่ใจหรือไม่ว่าต้องการลบบทความนี้?</p>
+      </template>
 
-    <table v-else class="w-full table-auto border-collapse">
-      <thead>
-        <tr class="bg-gray-100 dark:bg-gray-800">
-          <th class="p-2 text-left border">#</th>
-          <th class="p-2 text-left border">ชื่อบทความ</th>
-          <th class="p-2 text-left border w">Slug</th>
-          <th class="p-2 text-center border">จัดการ</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-for="(article, index) in articles" :key="article.id" class="hover:bg-gray-50 dark:hover:bg-gray-700">
-          <td class="p-2 border">{{ index + 1 }}</td>
-          <td class="p-2 border">{{ article.title }}</td>
-          <td class="p-2 border text-sm text-gray-500 w-300 truncate">{{ article.slug }}</td>
-          <td class="p-2 border text-center space-x-2">
-            <NuxtLink
-              :to="`/articles/edit?id=${article.id}`"
-              class="text-blue-600 hover:underline"
-            >
-              แก้ไข
-            </NuxtLink>
-            <button
-              @click="confirmDelete(article.id)"
-              class="text-red-600 hover:underline"
-            >
-              ลบ
-            </button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+      <template #footer>
+        <UButton
+          color="neutral"
+          variant="outline"
+          label="ยกเลิก"
+          @click="isDeleteModalOpen = false"
+        />
+        <UButton color="error" label="ลบ" @click="confirmDelete" />
+      </template>
+    </UModal>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref } from "vue";
+import { UModal, UButton, UBadge } from "#components";
+import type { TableColumn } from "@nuxt/ui";
+import { useRouter } from "vue-router";
+import { useNuxtApp } from "#app";
 
-const supabase = useNuxtApp().$supabase
-const router = useRouter()
+const supabase = useNuxtApp().$supabase;
+const router = useRouter();
 
 interface ArticleListItem {
-  id: number
-  title: string
-  slug: string
+  id: string;
+  title: string | null;
+  slug: string | null;
 }
 
-const articles = ref<ArticleListItem[]>([])
-const loading = ref(true)
-const error = ref('')
+const articles = ref<ArticleListItem[]>([]);
+const loading = ref(true);
+const error = ref("");
+const isDeleteModalOpen = ref(false);
+const deleteModalId = ref<string | null>(null);
+
+const columns: TableColumn<ArticleListItem>[] = [
+  { id: "title", header: "ชื่อบทความ", cell: ({ row }) => row.original.title },
+  {
+    id: "slug",
+    header: "Slug",
+    cell: ({ row }) =>
+      h(UBadge, {
+        class: "capitalize",
+        variant: "subtle",
+        color: "neutral",
+        label: `${row.original.slug}`,
+      }),
+  },
+  {
+    id: "actions",
+    header: "",
+    cell: ({ row }) =>
+      h("div", { class: "flex justify-end gap-2" }, [
+        h(
+          UButton,
+          {
+            color: "primary",
+            variant: "ghost",
+            size: "xs",
+            onClick: async () => {
+              await router.push(`/articles/edit?id=${row.original.id}`);
+            },
+          },
+          () => "แก้ไข"
+        ),
+        h(
+          UButton,
+          {
+            color: "error",
+            variant: "ghost",
+            size: "xs",
+            onClick: () => openDeleteModal(row.original.id),
+          },
+          () => "ลบ"
+        ),
+      ]),
+  },
+];
 
 const fetchArticles = async () => {
-  loading.value = true
+  loading.value = true;
   const { data, error: fetchError } = await supabase
-    .from('articles')
-    .select('id, title, slug')
-    .order('created_at', { ascending: false })
+    .from("articles")
+    .select("id, title, slug")
+    .order("created_at", { ascending: false });
 
   if (fetchError) {
-    error.value = 'โหลดข้อมูลบทความไม่สำเร็จ'
-    console.error(fetchError)
+    error.value = "โหลดข้อมูลบทความไม่สำเร็จ";
+    console.error(fetchError);
   } else {
-    articles.value = data || []
+    articles.value = data || [];
+  }
+  loading.value = false;
+};
+
+const openDeleteModal = (id: string) => {
+  deleteModalId.value = id;
+  isDeleteModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+  if (!deleteModalId.value) return;
+
+  const { data, error: err } = await useFetch(
+    `/api/articles/${deleteModalId.value}`,
+    {
+      method: "DELETE",
+    }
+  );
+
+  console.log(data.value)
+
+  if (err.value || data.value?.success !== true) {
+    console.error("ลบไม่สำเร็จ");
+    return;
+  } else {
+    articles.value = articles.value.filter((a) => a.id !== deleteModalId.value);
   }
 
-  loading.value = false
-}
+  isDeleteModalOpen.value = false;
+};
 
-const confirmDelete = async (id: number) => {
-  const confirmed = window.confirm('คุณแน่ใจหรือไม่ว่าต้องการลบบทความนี้?')
-  if (!confirmed) return
-
-  const { error: deleteError } = await supabase
-    .from('articles')
-    .delete()
-    .eq('id', id)
-
-  if (deleteError) {
-    alert('เกิดข้อผิดพลาดในการลบ')
-    console.error(deleteError)
-  } else {
-    articles.value = articles.value.filter(article => article.id !== id)
-  }
-}
-
-onMounted(fetchArticles)
+onMounted(fetchArticles);
 </script>
