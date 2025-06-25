@@ -6,7 +6,7 @@
 
     <div class="my-3 flex justify-end gap-2">
       <UButton color="success" to="/articles/create">เพิ่มบทความ</UButton>
-      <UButton color="warning" to="/articles/edit">แก้ไขบทความ</UButton>
+      <UButton color="warning" to="/articles/manage">จัดการบทความ</UButton>
     </div>
 
     <div v-if="loading" class="text-center">กำลังโหลดข้อมูล...</div>
