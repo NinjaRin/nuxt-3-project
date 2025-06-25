@@ -23,17 +23,14 @@ const editorId = ref(props.id)
 onMounted(async () => {
   if (!process.client) return
 
-  const tinymce = await import('tinymce/tinymce')
-
-  
-
+  await import('tinymce')
   await import('tinymce/icons/default')
   await import('tinymce/themes/silver')
   await import('tinymce/plugins/link')
   await import('tinymce/plugins/table')
   await import('tinymce/plugins/lists')
   await import('tinymce/plugins/code')
-  tinymce.init({
+  window.tinymce.init({
     selector: `#${editorId.value}`,
     height: 300,
     menubar: false,
